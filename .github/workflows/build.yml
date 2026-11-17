@@ -1,0 +1,45 @@
+name: Compila APK Widget Orologio
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Estrai lo zip del progetto
+        run: |
+          ZIP=WidgetOrologio.zip
+          [ -f "$ZIP" ] || ZIP=$(ls *.zip | head -n 1)
+          echo "Uso lo zip: $ZIP"
+          rm -rf progetto && unzip -o -q "$ZIP" -d progetto
+          DIR=$(dirname "$(find progetto -name settings.gradle | head -n 1)")
+          echo "DIR=$DIR" >> $GITHUB_ENV
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Compila l'APK
+        run: |
+          cd "$DIR"
+          gradle assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/WidgetOrologio.apk"
+
+      - name: Crea la Release con l'APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Widget Orologio v${{ github.run_number }}
+          files: WidgetOrologio.apk
